@@ -9,14 +9,6 @@ use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
-function actingAsAdmin(): User
-{
-    $admin = User::factory()->create(['is_admin' => true]);
-    Sanctum::actingAs($admin);
-
-    return $admin;
-}
-
 test('an admin can create a course', function () {
     actingAsAdmin();
 
@@ -59,6 +51,42 @@ test('an admin can add a typed content item to a course', function () {
         ->assertJsonPath('data.payload.url', 'https://youtube.com/watch?v=abc');
 
     $this->assertDatabaseHas('course_contents', ['course_id' => $course->id, 'type' => 'video']);
+});
+
+test('an admin can add an exam with start, end and result publish times', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+
+    $this->postJson("/api/admin/courses/{$course->id}/contents", [
+        'type' => 'exam',
+        'title' => 'Final exam',
+        'payload' => [
+            'duration_minutes' => 60,
+            'total_marks' => 100,
+            'start_time' => '2026-07-01T09:00:00',
+            'end_time' => '2026-07-01T10:00:00',
+            'result_publish_time' => '2026-07-03T09:00:00',
+        ],
+    ])->assertCreated()
+        ->assertJsonPath('data.type', 'exam')
+        ->assertJsonPath('data.payload.start_time', '2026-07-01T09:00:00')
+        ->assertJsonPath('data.payload.result_publish_time', '2026-07-03T09:00:00');
+
+    $this->assertDatabaseHas('course_contents', ['course_id' => $course->id, 'type' => 'exam']);
+});
+
+test('an exam end time cannot be before its start time', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+
+    $this->postJson("/api/admin/courses/{$course->id}/contents", [
+        'type' => 'exam',
+        'title' => 'Bad exam',
+        'payload' => [
+            'start_time' => '2026-07-01T10:00:00',
+            'end_time' => '2026-07-01T09:00:00',
+        ],
+    ])->assertUnprocessable()->assertJsonValidationErrorFor('payload.end_time');
 });
 
 test('content data is validated per type', function () {

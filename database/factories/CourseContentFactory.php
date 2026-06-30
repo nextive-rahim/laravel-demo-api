@@ -52,9 +52,7 @@ class CourseContentFactory extends Factory
             CourseContentType::Note => ['body' => fake()->paragraphs(2, true)],
             CourseContentType::Pdf => ['url' => fake()->url().'/document.pdf'],
             CourseContentType::Exam => [
-                'url' => fake()->url().'/exam',
                 'duration_minutes' => fake()->numberBetween(15, 120),
-                'total_marks' => fake()->numberBetween(20, 100),
             ],
             CourseContentType::Video => ['url' => 'https://youtube.com/watch?v='.fake()->lexify('???????????'), 'provider' => 'youtube'],
             CourseContentType::Live => ['url' => fake()->url().'/live', 'scheduled_at' => fake()->dateTimeBetween('now', '+1 month')->format('Y-m-d H:i:s')],

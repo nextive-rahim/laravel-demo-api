@@ -25,10 +25,13 @@ enum CourseContentType: string
             self::Pdf => [
                 'payload.url' => ['required', 'url', 'max:2048'],
             ],
+            // Exams have no external link; questions are attached from the MCQ store
+            // and total marks are computed from those questions.
             self::Exam => [
-                'payload.url' => ['nullable', 'url', 'max:2048'],
                 'payload.duration_minutes' => ['nullable', 'integer', 'min:1'],
-                'payload.total_marks' => ['nullable', 'integer', 'min:1'],
+                'payload.start_time' => ['nullable', 'date'],
+                'payload.end_time' => ['nullable', 'date', 'after_or_equal:payload.start_time'],
+                'payload.result_publish_time' => ['nullable', 'date', 'after_or_equal:payload.end_time'],
             ],
             self::Video => [
                 'payload.url' => ['required', 'url', 'max:2048'],

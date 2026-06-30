@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /*
@@ -44,7 +46,13 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Create an admin user and authenticate as them via Sanctum.
+ */
+function actingAsAdmin(): User
 {
-    // ..
+    $admin = User::factory()->create(['is_admin' => true]);
+    Sanctum::actingAs($admin);
+
+    return $admin;
 }
