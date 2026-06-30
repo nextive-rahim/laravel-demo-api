@@ -35,6 +35,7 @@ Route::prefix('auth')->group(function () {
 // Public course catalog (website) — only published courses are exposed.
 Route::get('courses', [CourseController::class, 'index']);
 Route::get('courses/{course}', [CourseController::class, 'show']);
+Route::get('courses/{course}/contents/{content}', [CourseController::class, 'content']);
 
 // Admin-only endpoints (require an authenticated user with is_admin = true).
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
@@ -43,6 +44,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 
     // Course management + typed content items.
     Route::apiResource('courses', AdminCourseController::class);
+    Route::get('courses/{course}/contents/{content}', [CourseContentController::class, 'show']);
     Route::post('courses/{course}/contents', [CourseContentController::class, 'store']);
     Route::put('courses/{course}/contents/{content}', [CourseContentController::class, 'update']);
     Route::patch('courses/{course}/contents/{content}', [CourseContentController::class, 'update']);

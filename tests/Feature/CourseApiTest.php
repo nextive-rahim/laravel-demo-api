@@ -35,3 +35,30 @@ test('a draft course returns 404 from the public endpoint', function () {
 
     $this->getJson("/api/courses/{$course->id}")->assertNotFound();
 });
+
+test('the website can show a single content item of a published course', function () {
+    $course = Course::factory()->create();
+    $content = CourseContent::factory()->for($course)->ofType(CourseContentType::Note)
+        ->create(['title' => 'Lesson notes', 'payload' => ['body' => 'Full body text']]);
+
+    $this->getJson("/api/courses/{$course->id}/contents/{$content->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $content->id)
+        ->assertJsonPath('data.title', 'Lesson notes')
+        ->assertJsonPath('data.payload.body', 'Full body text');
+});
+
+test('content of a draft course is not exposed to the website', function () {
+    $course = Course::factory()->draft()->create();
+    $content = CourseContent::factory()->for($course)->ofType(CourseContentType::Link)->create();
+
+    $this->getJson("/api/courses/{$course->id}/contents/{$content->id}")->assertNotFound();
+});
+
+test('content cannot be shown through the wrong published course', function () {
+    $courseA = Course::factory()->create();
+    $courseB = Course::factory()->create();
+    $content = CourseContent::factory()->for($courseA)->ofType(CourseContentType::Link)->create();
+
+    $this->getJson("/api/courses/{$courseB->id}/contents/{$content->id}")->assertNotFound();
+});

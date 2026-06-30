@@ -111,6 +111,56 @@ test('an admin can update and delete a content item', function () {
     $this->assertDatabaseMissing('course_contents', ['id' => $content->id]);
 });
 
+test('an admin can show a single content item with its data', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+    $content = CourseContent::factory()->for($course)->ofType(CourseContentType::Note)
+        ->create(['title' => 'Lesson notes', 'payload' => ['body' => 'Full body text']]);
+
+    $this->getJson("/api/admin/courses/{$course->id}/contents/{$content->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $content->id)
+        ->assertJsonPath('data.title', 'Lesson notes')
+        ->assertJsonPath('data.payload.body', 'Full body text');
+});
+
+test('a content item cannot be shown through the wrong course', function () {
+    actingAsAdmin();
+    $courseA = Course::factory()->create();
+    $courseB = Course::factory()->create();
+    $content = CourseContent::factory()->for($courseA)->ofType(CourseContentType::Link)->create();
+
+    $this->getJson("/api/admin/courses/{$courseB->id}/contents/{$content->id}")->assertNotFound();
+});
+
+test('an admin can edit a content item title and payload', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+    $content = CourseContent::factory()->for($course)->ofType(CourseContentType::Video)
+        ->create(['title' => 'Old', 'payload' => ['url' => 'https://old.test/v', 'provider' => 'youtube']]);
+
+    $this->putJson("/api/admin/courses/{$course->id}/contents/{$content->id}", [
+        'title' => 'New title',
+        'payload' => ['url' => 'https://new.test/v', 'provider' => 'vimeo'],
+    ])->assertOk()
+        ->assertJsonPath('data.title', 'New title')
+        ->assertJsonPath('data.payload.url', 'https://new.test/v')
+        ->assertJsonPath('data.payload.provider', 'vimeo');
+
+    $this->assertDatabaseHas('course_contents', ['id' => $content->id, 'title' => 'New title']);
+});
+
+test('editing a content item revalidates the payload for its type', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+    $content = CourseContent::factory()->for($course)->ofType(CourseContentType::Video)->create();
+
+    // Clearing the required video url must fail validation.
+    $this->putJson("/api/admin/courses/{$course->id}/contents/{$content->id}", [
+        'payload' => [],
+    ])->assertUnprocessable()->assertJsonValidationErrorFor('payload.url');
+});
+
 test('a content item cannot be edited through the wrong course', function () {
     actingAsAdmin();
     $courseA = Course::factory()->create();

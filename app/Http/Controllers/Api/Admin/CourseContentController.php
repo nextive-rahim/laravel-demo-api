@@ -13,6 +13,16 @@ use Illuminate\Http\JsonResponse;
 class CourseContentController extends Controller
 {
     /**
+     * Show a single content item with its full data (step 3: click a content item).
+     */
+    public function show(Course $course, CourseContent $content): CourseContentResource
+    {
+        $this->ensureContentBelongsToCourse($course, $content);
+
+        return new CourseContentResource($content);
+    }
+
+    /**
      * Add a content item (note, pdf, exam, video, live or link) to a course.
      */
     public function store(StoreCourseContentRequest $request, Course $course): JsonResponse
