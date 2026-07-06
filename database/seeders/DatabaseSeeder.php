@@ -18,6 +18,11 @@ class DatabaseSeeder extends Seeder
             DefaultAdminSeeder::class,
             CourseSeeder::class,
             ExamModuleSeeder::class,
+            NoticeSeeder::class,
+            StudentReviewSeeder::class,
+            PostSeeder::class,
+            AboutSeeder::class,
+            AdvertisementSeeder::class,
         ]);
     }
 }

@@ -1,19 +1,29 @@
 <?php
 
+use App\Http\Controllers\Api\AboutController;
+use App\Http\Controllers\Api\Admin\AboutController as AdminAboutController;
+use App\Http\Controllers\Api\Admin\AdvertisementController as AdminAdvertisementController;
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\CourseContentController;
 use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\Admin\ExamAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExamQuestionController;
+use App\Http\Controllers\Api\Admin\NoticeController as AdminNoticeController;
+use App\Http\Controllers\Api\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Api\Admin\QuestionController;
+use App\Http\Controllers\Api\Admin\StudentReviewController as AdminStudentReviewController;
 use App\Http\Controllers\Api\Admin\SubcategoryController;
 use App\Http\Controllers\Api\Admin\UploadController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\AdvertisementController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\AvatarController;
 use App\Http\Controllers\Api\Auth\PasswordController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\ExamController;
+use App\Http\Controllers\Api\NoticeController;
+use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\StudentReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -37,6 +47,24 @@ Route::prefix('auth')->group(function () {
         Route::delete('avatar', [AvatarController::class, 'destroy']);
     });
 });
+
+// Public notice board (website) — only published notices are exposed.
+Route::get('notices', [NoticeController::class, 'index']);
+Route::get('notices/{notice}', [NoticeController::class, 'show']);
+
+// Public student reviews / success stories (website).
+Route::get('student-reviews', [StudentReviewController::class, 'index']);
+Route::get('student-reviews/{studentReview}', [StudentReviewController::class, 'show']);
+
+// Public blog & news (website).
+Route::get('posts', [PostController::class, 'index']);
+Route::get('posts/{post}', [PostController::class, 'show']);
+
+// Public "About us" content (website).
+Route::get('about', [AboutController::class, 'show']);
+
+// Public advertisements (website) — only live ads are exposed.
+Route::get('advertisements', [AdvertisementController::class, 'index']);
 
 // Public course catalog (website) — only published courses are exposed.
 Route::get('courses', [CourseController::class, 'index']);
@@ -65,6 +93,22 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::patch('courses/{course}/contents/{content}', [CourseContentController::class, 'update']);
     Route::delete('courses/{course}/contents/{content}', [CourseContentController::class, 'destroy']);
 
+    // Notice board management (website + admin share the notices table).
+    Route::apiResource('notices', AdminNoticeController::class);
+
+    // Student reviews / success stories.
+    Route::apiResource('student-reviews', AdminStudentReviewController::class);
+
+    // Blog & news posts.
+    Route::apiResource('posts', AdminPostController::class);
+
+    // "About us" singleton content.
+    Route::get('about', [AdminAboutController::class, 'show']);
+    Route::put('about', [AdminAboutController::class, 'update']);
+
+    // Advertisements (banners, popups, home promos).
+    Route::apiResource('advertisements', AdminAdvertisementController::class);
+
     // MCQ store: categories, subcategories and the question bank.
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('subcategories', SubcategoryController::class);
@@ -79,6 +123,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::get('courses/{course}/contents/{content}/attempts', [ExamAnalyticsController::class, 'attempts']);
     Route::get('courses/{course}/contents/{content}/analysis', [ExamAnalyticsController::class, 'analysis']);
 
-    // PDF upload to S3 (returns a URL for use in course content).
+    // PDF + image uploads to S3 (return a URL for use in content / notices).
     Route::post('uploads/pdf', [UploadController::class, 'pdf']);
+    Route::post('uploads/image', [UploadController::class, 'image']);
 });
