@@ -2,38 +2,33 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProgramCategory;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Enum;
 
-class StoreCourseRequest extends FormRequest
+class StoreProgramRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
+            'category' => ['required', new Enum(ProgramCategory::class)],
             'title' => ['required', 'string', 'max:255'],
+            'subtitle' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'thumbnail_path' => ['nullable', 'string', 'max:2048'],
-            'instructor_name' => ['nullable', 'string', 'max:255'],
-            'instructor_title' => ['nullable', 'string', 'max:255'],
-            'instructor_image_path' => ['nullable', 'string', 'max:2048'],
             'price' => ['nullable', 'integer', 'min:0'],
             'discount_price' => ['nullable', 'integer', 'min:0'],
-            'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
-            'rating_count' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['boolean'],
+            'position' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

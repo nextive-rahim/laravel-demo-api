@@ -8,8 +8,11 @@ use App\Http\Controllers\Api\Admin\CourseContentController;
 use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\Admin\ExamAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExamQuestionController;
+use App\Http\Controllers\Api\Admin\FreeResourceController as AdminFreeResourceController;
+use App\Http\Controllers\Api\Admin\LiveCourseController as AdminLiveCourseController;
 use App\Http\Controllers\Api\Admin\NoticeController as AdminNoticeController;
 use App\Http\Controllers\Api\Admin\PostController as AdminPostController;
+use App\Http\Controllers\Api\Admin\ProgramController as AdminProgramController;
 use App\Http\Controllers\Api\Admin\QuestionController;
 use App\Http\Controllers\Api\Admin\StudentReviewController as AdminStudentReviewController;
 use App\Http\Controllers\Api\Admin\SubcategoryController;
@@ -21,8 +24,11 @@ use App\Http\Controllers\Api\Auth\AvatarController;
 use App\Http\Controllers\Api\Auth\PasswordController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\ExamController;
+use App\Http\Controllers\Api\FreeResourceController;
+use App\Http\Controllers\Api\LiveCourseController;
 use App\Http\Controllers\Api\NoticeController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\StudentReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +72,17 @@ Route::get('about', [AboutController::class, 'show']);
 // Public advertisements (website) — only live ads are exposed.
 Route::get('advertisements', [AdvertisementController::class, 'index']);
 
+// Public live courses (website).
+Route::get('live-courses', [LiveCourseController::class, 'index']);
+Route::get('live-courses/{liveCourse}', [LiveCourseController::class, 'show']);
+
+// Public free resources (website).
+Route::get('free-resources', [FreeResourceController::class, 'index']);
+
+// Public academic / skill programs (website).
+Route::get('programs', [ProgramController::class, 'index']);
+Route::get('programs/{program}', [ProgramController::class, 'show']);
+
 // Public course catalog (website) — only published courses are exposed.
 Route::get('courses', [CourseController::class, 'index']);
 Route::get('courses/{course}', [CourseController::class, 'show']);
@@ -108,6 +125,11 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 
     // Advertisements (banners, popups, home promos).
     Route::apiResource('advertisements', AdminAdvertisementController::class);
+
+    // Live courses, free resources and academic programs.
+    Route::apiResource('live-courses', AdminLiveCourseController::class);
+    Route::apiResource('free-resources', AdminFreeResourceController::class);
+    Route::apiResource('programs', AdminProgramController::class);
 
     // MCQ store: categories, subcategories and the question bank.
     Route::apiResource('categories', CategoryController::class);

@@ -25,6 +25,21 @@ class AdvertisementSeeder extends Seeder
             'link_url' => 'https://example.com/live',
         ]);
 
-        Advertisement::factory()->placement(AdPlacement::Home)->count(2)->create();
+        // Home-section carousel slides.
+        $homeAds = [
+            ['title' => 'Admission 2026 is open', 'description' => 'Secure your seat for the new batch and save 20% this week.', 'link_url' => 'https://example.com/admission'],
+            ['title' => 'Free model test this week', 'description' => 'Test your preparation with a full-length free model exam.', 'link_url' => 'https://example.com/model-test'],
+            ['title' => 'New video lessons added', 'description' => 'Fresh HD lessons from top instructors — now streaming.', 'link_url' => 'https://example.com/videos'],
+            ['title' => 'Live class marathon', 'description' => 'Non-stop live classes all weekend. Do not miss out!', 'link_url' => 'https://example.com/marathon'],
+            ['title' => 'Refer a friend, get 1 month free', 'description' => 'Invite friends and unlock premium access for free.', 'link_url' => 'https://example.com/refer'],
+            ['title' => 'Premium notes bundle', 'description' => 'Complete note bundle at a limited-time launch price.', 'link_url' => 'https://example.com/notes'],
+        ];
+
+        foreach ($homeAds as $position => $ad) {
+            Advertisement::factory()->placement(AdPlacement::Home)->create([
+                ...$ad,
+                'position' => $position,
+            ]);
+        }
     }
 }

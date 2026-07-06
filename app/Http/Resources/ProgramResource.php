@@ -2,41 +2,33 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Course;
+use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin Course
+ * @mixin Program
  */
-class CourseResource extends JsonResource
+class ProgramResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
-     *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
             'id' => $this->id,
+            'category' => $this->category->value,
             'title' => $this->title,
+            'subtitle' => $this->subtitle,
             'description' => $this->description,
             'thumbnail_path' => $this->thumbnail_path,
             'thumbnail_url' => $this->thumbnail_url,
-            'instructor_name' => $this->instructor_name,
-            'instructor_title' => $this->instructor_title,
-            'instructor_image_path' => $this->instructor_image_path,
-            'instructor_image_url' => $this->instructor_image_url,
             'price' => $this->price,
             'discount_price' => $this->discount_price,
-            'rating' => $this->rating,
-            'rating_count' => $this->rating_count,
             'is_published' => $this->is_published,
-            'contents_count' => $this->whenCounted('contents'),
-            'contents' => CourseContentResource::collection($this->whenLoaded('contents')),
+            'position' => $this->position,
             'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
         ];
     }
 }
