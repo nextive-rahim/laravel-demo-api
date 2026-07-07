@@ -5,7 +5,8 @@ FROM php:8.3-fpm-bookworm
 
 # Reliable PHP extension installer — pulls the right system libs automatically.
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/bin/
-RUN install-php-extensions pdo_mysql mbstring bcmath gd zip intl opcache pcntl
+RUN install-php-extensions pdo_mysql mbstring bcmath gd zip intl opcache pcntl \
+    dom xml simplexml curl exif
 
 # Web server + process supervisor + envsubst (for templating the port).
 RUN apt-get update \
