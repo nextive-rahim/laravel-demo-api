@@ -180,17 +180,24 @@ class ExamController extends Controller
     {
         $published = $this->resultsPublished($content);
         $publishAt = $this->payloadDate($content, 'result_publish_time');
+        $passMark = (int) ($content->payload['pass_mark'] ?? 40);
 
         $base = [
             'attempt' => $this->attemptSummary($attempt),
+            'submitted' => $attempt->isSubmitted(),
             'results_published' => $published,
             'result_publish_time' => $publishAt?->toIso8601String(),
+            'pass_mark' => $passMark,
         ];
 
         if (! $published) {
             // Score is withheld until results are published.
-            return array_merge($base, ['score' => null, 'total_marks' => null, 'questions' => null]);
+            return array_merge($base, ['score' => null, 'total_marks' => null, 'percentage' => null, 'passed' => null, 'questions' => null]);
         }
+
+        $percentage = $attempt->total_marks
+            ? round($attempt->score / $attempt->total_marks * 100, 1)
+            : 0.0;
 
         $answers = $attempt->answers()->with(['question.options', 'option'])->get()->keyBy('question_id');
 
@@ -216,6 +223,8 @@ class ExamController extends Controller
         return array_merge($base, [
             'score' => $attempt->score,
             'total_marks' => $attempt->total_marks,
+            'percentage' => $percentage,
+            'passed' => $percentage >= $passMark,
             'questions' => $questions,
         ]);
     }
@@ -234,6 +243,7 @@ class ExamController extends Controller
             'course_id' => $content->course_id,
             'title' => $content->title,
             'duration_minutes' => $payload['duration_minutes'] ?? null,
+            'pass_mark' => (int) ($payload['pass_mark'] ?? 40),
             'total_marks' => (int) $content->questions()->sum(DB::raw('coalesce(content_question.marks, questions.marks)')),
             'question_count' => $content->questions()->count(),
             'start_time' => $this->payloadDate($content, 'start_time')?->toIso8601String(),
@@ -269,6 +279,7 @@ class ExamController extends Controller
         return [
             'id' => $attempt->id,
             'status' => $attempt->status->value,
+            'submitted' => $attempt->isSubmitted(),
             'started_at' => $attempt->started_at?->toIso8601String(),
             'submitted_at' => $attempt->submitted_at?->toIso8601String(),
             'time_taken_seconds' => $attempt->time_taken_seconds,

@@ -167,6 +167,74 @@ test('a student can take an exam and it is auto-graded', function () {
     $this->assertDatabaseHas('exam_attempts', ['course_content_id' => $exam->id, 'status' => 'submitted', 'score' => 2]);
 });
 
+test('an admin-set pass mark decides pass/fail on the server', function () {
+    $exam = makeExam(['pass_mark' => 60]); // 2 of 4 marks = 50% -> below 60
+    $questions = attachQuestions($exam, [0, 1]);
+    Sanctum::actingAs(User::factory()->create());
+
+    $base = "/api/courses/{$exam->course_id}/contents/{$exam->id}/exam";
+    $this->postJson("{$base}/start")->assertOk();
+
+    $this->postJson("{$base}/submit", ['answers' => [
+        ['question_id' => $questions[0]->id, 'question_option_id' => $questions[0]->options->firstWhere('is_correct', true)->id],
+        ['question_id' => $questions[1]->id, 'question_option_id' => $questions[1]->options->firstWhere('is_correct', false)->id],
+    ]])
+        ->assertOk()
+        ->assertJsonPath('data.pass_mark', 60)
+        ->assertJsonPath('data.passed', false)
+        ->assertJsonPath('data.submitted', true)
+        ->assertJsonPath('data.percentage', fn ($v) => (int) round($v) === 50);
+});
+
+test('a lower pass mark lets the same score pass', function () {
+    $exam = makeExam(['pass_mark' => 50]); // exactly 50% passes
+    $questions = attachQuestions($exam, [0, 1]);
+    Sanctum::actingAs(User::factory()->create());
+
+    $base = "/api/courses/{$exam->course_id}/contents/{$exam->id}/exam";
+    $this->postJson("{$base}/start")->assertOk();
+
+    $this->postJson("{$base}/submit", ['answers' => [
+        ['question_id' => $questions[0]->id, 'question_option_id' => $questions[0]->options->firstWhere('is_correct', true)->id],
+        ['question_id' => $questions[1]->id, 'question_option_id' => $questions[1]->options->firstWhere('is_correct', false)->id],
+    ]])
+        ->assertOk()
+        ->assertJsonPath('data.pass_mark', 50)
+        ->assertJsonPath('data.passed', true);
+});
+
+test('the exam meta exposes a default 40% pass mark when none is set', function () {
+    $exam = makeExam(); // no pass_mark
+    attachQuestions($exam, [0]);
+    Sanctum::actingAs(User::factory()->create());
+
+    $this->getJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam")
+        ->assertOk()
+        ->assertJsonPath('data.pass_mark', 40);
+});
+
+test('an admin can set the pass mark when creating an exam content item', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+
+    $this->postJson("/api/admin/courses/{$course->id}/contents", [
+        'type' => 'exam',
+        'title' => 'Graded exam',
+        'payload' => ['duration_minutes' => 30, 'pass_mark' => 70],
+    ])->assertCreated()->assertJsonPath('data.payload.pass_mark', 70);
+});
+
+test('the pass mark must be between 0 and 100', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+
+    $this->postJson("/api/admin/courses/{$course->id}/contents", [
+        'type' => 'exam',
+        'title' => 'Bad exam',
+        'payload' => ['pass_mark' => 150],
+    ])->assertUnprocessable()->assertJsonValidationErrorFor('payload.pass_mark');
+});
+
 test('a student gets only one attempt', function () {
     $exam = makeExam();
     $questions = attachQuestions($exam, [0]);

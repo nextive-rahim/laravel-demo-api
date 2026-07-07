@@ -23,9 +23,9 @@ class DatabaseSeeder extends Seeder
             PostSeeder::class,
             AboutSeeder::class,
             AdvertisementSeeder::class,
-            LiveCourseSeeder::class,
             FreeResourceSeeder::class,
             ProgramSeeder::class,
+            HomeSettingSeeder::class,
         ]);
     }
 }

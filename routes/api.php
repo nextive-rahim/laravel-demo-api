@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\Admin\ExamAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExamQuestionController;
 use App\Http\Controllers\Api\Admin\FreeResourceController as AdminFreeResourceController;
-use App\Http\Controllers\Api\Admin\LiveCourseController as AdminLiveCourseController;
+use App\Http\Controllers\Api\Admin\HomeSettingController as AdminHomeSettingController;
 use App\Http\Controllers\Api\Admin\NoticeController as AdminNoticeController;
 use App\Http\Controllers\Api\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Api\Admin\ProgramController as AdminProgramController;
@@ -25,11 +25,12 @@ use App\Http\Controllers\Api\Auth\PasswordController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\FreeResourceController;
-use App\Http\Controllers\Api\LiveCourseController;
+use App\Http\Controllers\Api\HomeSettingController;
 use App\Http\Controllers\Api\NoticeController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\StudentReviewController;
+use App\Http\Controllers\Api\TodaysLiveController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -66,15 +67,17 @@ Route::get('student-reviews/{studentReview}', [StudentReviewController::class, '
 Route::get('posts', [PostController::class, 'index']);
 Route::get('posts/{post}', [PostController::class, 'show']);
 
+// Public home page settings (hero + stats).
+Route::get('home-settings', [HomeSettingController::class, 'show']);
+
 // Public "About us" content (website).
 Route::get('about', [AboutController::class, 'show']);
 
 // Public advertisements (website) — only live ads are exposed.
 Route::get('advertisements', [AdvertisementController::class, 'index']);
 
-// Public live courses (website).
-Route::get('live-courses', [LiveCourseController::class, 'index']);
-Route::get('live-courses/{liveCourse}', [LiveCourseController::class, 'show']);
+// Today's live schedule (exams + classes from course content starting today).
+Route::get('todays-live', [TodaysLiveController::class, 'index']);
 
 // Public free resources (website).
 Route::get('free-resources', [FreeResourceController::class, 'index']);
@@ -119,6 +122,10 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     // Blog & news posts.
     Route::apiResource('posts', AdminPostController::class);
 
+    // Home page settings (hero + stats) singleton.
+    Route::get('home-settings', [AdminHomeSettingController::class, 'show']);
+    Route::put('home-settings', [AdminHomeSettingController::class, 'update']);
+
     // "About us" singleton content.
     Route::get('about', [AdminAboutController::class, 'show']);
     Route::put('about', [AdminAboutController::class, 'update']);
@@ -126,8 +133,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     // Advertisements (banners, popups, home promos).
     Route::apiResource('advertisements', AdminAdvertisementController::class);
 
-    // Live courses, free resources and academic programs.
-    Route::apiResource('live-courses', AdminLiveCourseController::class);
+    // Free resources and academic programs.
     Route::apiResource('free-resources', AdminFreeResourceController::class);
     Route::apiResource('programs', AdminProgramController::class);
 

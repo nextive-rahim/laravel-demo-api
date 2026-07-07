@@ -29,6 +29,7 @@ enum CourseContentType: string
             // and total marks are computed from those questions.
             self::Exam => [
                 'payload.duration_minutes' => ['nullable', 'integer', 'min:1'],
+                'payload.pass_mark' => ['nullable', 'integer', 'min:0', 'max:100'],
                 'payload.start_time' => ['nullable', 'date'],
                 'payload.end_time' => ['nullable', 'date', 'after_or_equal:payload.start_time'],
                 'payload.result_publish_time' => ['nullable', 'date', 'after_or_equal:payload.end_time'],
