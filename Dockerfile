@@ -1,7 +1,7 @@
 # Production image for the Laravel API — runs on Render (or any Docker host).
 # Nginx + PHP-FPM under supervisor. The database lives on Aiven, files on S3,
 # so this container only needs to run PHP.
-FROM php:8.3-fpm-bookworm
+FROM php:8.4-fpm-bookworm
 
 # Reliable PHP extension installer — pulls the right system libs automatically.
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/bin/
