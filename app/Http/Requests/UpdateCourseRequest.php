@@ -25,6 +25,7 @@ class UpdateCourseRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'overview' => ['nullable', 'string', 'max:20000'],
             'thumbnail_path' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'instructor_name' => ['nullable', 'string', 'max:255'],
             'instructor_title' => ['nullable', 'string', 'max:255'],

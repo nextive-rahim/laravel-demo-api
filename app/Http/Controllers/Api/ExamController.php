@@ -21,7 +21,7 @@ class ExamController extends Controller
      */
     public function show(Request $request, Course $course, CourseContent $content): JsonResponse
     {
-        $this->ensureExamContent($course, $content);
+        $this->ensureExamContent($request, $course, $content);
 
         $attempt = $this->attemptFor($request, $content);
 
@@ -38,7 +38,7 @@ class ExamController extends Controller
      */
     public function start(Request $request, Course $course, CourseContent $content): JsonResponse
     {
-        $this->ensureExamContent($course, $content);
+        $this->ensureExamContent($request, $course, $content);
 
         abort_unless($content->questions()->exists(), 422, 'This exam has no questions yet.');
         abort_if($this->isBeforeWindow($content), 422, 'This exam has not opened yet.');
@@ -69,7 +69,7 @@ class ExamController extends Controller
      */
     public function submit(SubmitExamRequest $request, Course $course, CourseContent $content): JsonResponse
     {
-        $this->ensureExamContent($course, $content);
+        $this->ensureExamContent($request, $course, $content);
 
         $user = $request->user();
         $attempt = $content->attempts()->where('user_id', $user->id)->first();
@@ -127,7 +127,7 @@ class ExamController extends Controller
      */
     public function result(Request $request, Course $course, CourseContent $content): JsonResponse
     {
-        $this->ensureExamContent($course, $content);
+        $this->ensureExamContent($request, $course, $content);
 
         $attempt = $this->attemptFor($request, $content);
 
@@ -144,7 +144,7 @@ class ExamController extends Controller
      */
     public function ranking(Request $request, Course $course, CourseContent $content): JsonResponse
     {
-        $this->ensureExamContent($course, $content);
+        $this->ensureExamContent($request, $course, $content);
         abort_unless($this->resultsPublished($content), 403, 'Rankings are available once results are published.');
 
         $userId = $request->user()->id;
@@ -323,11 +323,13 @@ class ExamController extends Controller
     }
 
     /**
-     * Guard: content must belong to the course and be an exam.
+     * Guard: content must belong to the course, be an exam, and the student
+     * must have an approved enrollment for the course.
      */
-    private function ensureExamContent(Course $course, CourseContent $content): void
+    private function ensureExamContent(Request $request, Course $course, CourseContent $content): void
     {
         abort_unless($content->course_id === $course->id, 404);
         abort_unless($content->isExam(), 404);
+        abort_unless($course->isAccessibleBy($request->user()), 403, 'Enroll in this course to take its exams.');
     }
 }

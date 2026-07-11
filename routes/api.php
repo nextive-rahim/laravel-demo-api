@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\AdvertisementController as AdminAdvertisement
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\CourseContentController;
 use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Api\Admin\EnrollmentController as AdminEnrollmentController;
 use App\Http\Controllers\Api\Admin\ExamAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExamQuestionController;
 use App\Http\Controllers\Api\Admin\FreeResourceController as AdminFreeResourceController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\AvatarController;
 use App\Http\Controllers\Api\Auth\PasswordController;
 use App\Http\Controllers\Api\CourseController;
+use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\FreeResourceController;
 use App\Http\Controllers\Api\HomeSettingController;
@@ -91,6 +93,12 @@ Route::get('courses', [CourseController::class, 'index']);
 Route::get('courses/{course}', [CourseController::class, 'show']);
 Route::get('courses/{course}/contents/{content}', [CourseController::class, 'content']);
 
+// Authenticated student course enrollment (manual payment submission + status).
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('enrollments', [EnrollmentController::class, 'index']);
+    Route::post('courses/{course}/enroll', [EnrollmentController::class, 'store']);
+});
+
 // Authenticated student exam-taking (MCQ exams attached to course content).
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('courses/{course}/contents/{content}/exam', [ExamController::class, 'show']);
@@ -104,6 +112,11 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('users', [UserController::class, 'index']);
     Route::get('stats', [UserController::class, 'stats']);
+
+    // Course enrollments: review manual payments and grant/revoke access.
+    Route::get('enrollments', [AdminEnrollmentController::class, 'index']);
+    Route::post('enrollments/{enrollment}/approve', [AdminEnrollmentController::class, 'approve']);
+    Route::post('enrollments/{enrollment}/reject', [AdminEnrollmentController::class, 'reject']);
 
     // Course management + typed content items.
     Route::apiResource('courses', AdminCourseController::class);

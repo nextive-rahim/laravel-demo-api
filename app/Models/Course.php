@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
-    'title', 'description', 'thumbnail_path', 'instructor_name', 'instructor_title',
+    'title', 'description', 'overview', 'thumbnail_path', 'instructor_name', 'instructor_title',
     'instructor_image_path', 'price', 'discount_price', 'rating', 'rating_count', 'is_published',
 ])]
 class Course extends Model
@@ -27,6 +27,48 @@ class Course extends Model
     public function contents(): HasMany
     {
         return $this->hasMany(CourseContent::class)->orderBy('position');
+    }
+
+    /**
+     * The enrollments (paid access requests) made against this course.
+     *
+     * @return HasMany<Enrollment, $this>
+     */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    /**
+     * Whether the course is free (no payment required to enroll).
+     */
+    public function isFree(): bool
+    {
+        return $this->effectivePrice() === 0;
+    }
+
+    /**
+     * The price a student actually pays: the discounted price when set,
+     * otherwise the base price (0 when neither is set).
+     */
+    public function effectivePrice(): int
+    {
+        return (int) ($this->discount_price ?? $this->price ?? 0);
+    }
+
+    /**
+     * Whether the given user may access this course's locked content.
+     */
+    public function isAccessibleBy(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return $this->enrollments()
+            ->where('user_id', $user->id)
+            ->approved()
+            ->exists();
     }
 
     /**

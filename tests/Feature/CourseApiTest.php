@@ -3,7 +3,10 @@
 use App\Enums\CourseContentType;
 use App\Models\Course;
 use App\Models\CourseContent;
+use App\Models\Enrollment;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -40,6 +43,11 @@ test('the website can show a single content item of a published course', functio
     $course = Course::factory()->create();
     $content = CourseContent::factory()->for($course)->ofType(CourseContentType::Note)
         ->create(['title' => 'Lesson notes', 'payload' => ['body' => 'Full body text']]);
+
+    // Content is gated behind an approved enrollment.
+    $student = User::factory()->create();
+    Enrollment::factory()->for($student)->for($course)->approved()->create();
+    Sanctum::actingAs($student);
 
     $this->getJson("/api/courses/{$course->id}/contents/{$content->id}")
         ->assertOk()

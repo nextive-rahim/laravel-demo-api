@@ -4,6 +4,7 @@ use App\Enums\CourseContentType;
 use App\Models\Category;
 use App\Models\Course;
 use App\Models\CourseContent;
+use App\Models\Enrollment;
 use App\Models\Question;
 use App\Models\Subcategory;
 use App\Models\User;
@@ -24,6 +25,20 @@ function makeExam(array $payload = []): CourseContent
         ->for($course)
         ->ofType(CourseContentType::Exam)
         ->create(['payload' => array_merge(['duration_minutes' => 30], $payload)]);
+}
+
+/**
+ * Create a student with an approved enrollment for the exam's course and act as them.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function actingAsEnrolledStudent(CourseContent $exam, array $attributes = []): User
+{
+    $student = User::factory()->create($attributes);
+    Enrollment::factory()->for($student)->for($exam->course)->approved()->create();
+    Sanctum::actingAs($student);
+
+    return $student;
 }
 
 /**
@@ -131,7 +146,7 @@ test('exam endpoints require authentication', function () {
 test('the taking payload never leaks which option is correct', function () {
     $exam = makeExam();
     attachQuestions($exam, [0, 1]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $response = $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")
         ->assertOk();
@@ -146,7 +161,7 @@ test('the taking payload never leaks which option is correct', function () {
 test('a student can take an exam and it is auto-graded', function () {
     $exam = makeExam(); // no result_publish_time -> results shown immediately
     $questions = attachQuestions($exam, [0, 1]); // each worth 2 marks, total 4
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")->assertOk();
 
@@ -170,7 +185,7 @@ test('a student can take an exam and it is auto-graded', function () {
 test('an admin-set pass mark decides pass/fail on the server', function () {
     $exam = makeExam(['pass_mark' => 60]); // 2 of 4 marks = 50% -> below 60
     $questions = attachQuestions($exam, [0, 1]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $base = "/api/courses/{$exam->course_id}/contents/{$exam->id}/exam";
     $this->postJson("{$base}/start")->assertOk();
@@ -189,7 +204,7 @@ test('an admin-set pass mark decides pass/fail on the server', function () {
 test('a lower pass mark lets the same score pass', function () {
     $exam = makeExam(['pass_mark' => 50]); // exactly 50% passes
     $questions = attachQuestions($exam, [0, 1]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $base = "/api/courses/{$exam->course_id}/contents/{$exam->id}/exam";
     $this->postJson("{$base}/start")->assertOk();
@@ -206,7 +221,7 @@ test('a lower pass mark lets the same score pass', function () {
 test('the exam meta exposes a default 40% pass mark when none is set', function () {
     $exam = makeExam(); // no pass_mark
     attachQuestions($exam, [0]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $this->getJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam")
         ->assertOk()
@@ -238,7 +253,7 @@ test('the pass mark must be between 0 and 100', function () {
 test('a student gets only one attempt', function () {
     $exam = makeExam();
     $questions = attachQuestions($exam, [0]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")->assertOk();
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/submit", [
@@ -253,7 +268,7 @@ test('a student gets only one attempt', function () {
 test('results are withheld until the publish time', function () {
     $exam = makeExam(['result_publish_time' => now()->addDay()->toIso8601String()]);
     $questions = attachQuestions($exam, [0]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")->assertOk();
 
@@ -274,15 +289,13 @@ test('students see a ranking ordered by score then time once results are publish
     $questions = attachQuestions($exam, [0]); // one question, 2 marks
 
     // Two students: one correct (winner), one wrong.
-    $winner = User::factory()->create(['name' => 'Top Scorer']);
-    Sanctum::actingAs($winner);
+    $winner = actingAsEnrolledStudent($exam, ['name' => 'Top Scorer']);
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")->assertOk();
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/submit", [
         'answers' => [['question_id' => $questions[0]->id, 'question_option_id' => $questions[0]->options->firstWhere('is_correct', true)->id]],
     ])->assertOk();
 
-    $loser = User::factory()->create(['name' => 'Lower Scorer']);
-    Sanctum::actingAs($loser);
+    $loser = actingAsEnrolledStudent($exam, ['name' => 'Lower Scorer']);
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")->assertOk();
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/submit", [
         'answers' => [['question_id' => $questions[0]->id, 'question_option_id' => $questions[0]->options->firstWhere('is_correct', false)->id]],
@@ -301,7 +314,7 @@ test('students see a ranking ordered by score then time once results are publish
 test('ranking is hidden until results are published', function () {
     $exam = makeExam(['result_publish_time' => now()->addDay()->toIso8601String()]);
     attachQuestions($exam, [0]);
-    Sanctum::actingAs(User::factory()->create());
+    actingAsEnrolledStudent($exam);
 
     $this->getJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/ranking")
         ->assertStatus(403);
@@ -311,8 +324,7 @@ test('an admin can see attempts and analysis for an exam', function () {
     $exam = makeExam();
     $questions = attachQuestions($exam, [0]);
 
-    $student = User::factory()->create();
-    Sanctum::actingAs($student);
+    actingAsEnrolledStudent($exam);
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/start")->assertOk();
     $this->postJson("/api/courses/{$exam->course_id}/contents/{$exam->id}/exam/submit", [
         'answers' => [['question_id' => $questions[0]->id, 'question_option_id' => $questions[0]->options->firstWhere('is_correct', true)->id]],

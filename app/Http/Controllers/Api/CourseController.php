@@ -7,6 +7,8 @@ use App\Http\Resources\CourseContentResource;
 use App\Http\Resources\CourseResource;
 use App\Models\Course;
 use App\Models\CourseContent;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -27,9 +29,11 @@ class CourseController extends Controller
     }
 
     /**
-     * Show a single published course with all of its content items.
+     * Show a single published course. Content payloads are only unlocked for
+     * students with an approved enrollment; everyone else sees a curriculum
+     * preview (titles + types) alongside their own enrollment status.
      */
-    public function show(Course $course): CourseResource
+    public function show(Request $request, Course $course): CourseResource
     {
         if (! $course->is_published) {
             throw new NotFoundHttpException;
@@ -37,18 +41,34 @@ class CourseController extends Controller
 
         $course->load('contents');
 
+        // Signal to the resources whether locked payloads may be exposed.
+        $request->attributes->set('course_unlocked', $course->isAccessibleBy($this->currentUser($request)));
+
         return new CourseResource($course);
     }
 
     /**
-     * Show a single content item's data for a published course (step 3: click a content item).
+     * Show a single content item's data — requires an approved enrollment.
      */
-    public function content(Course $course, CourseContent $content): CourseContentResource
+    public function content(Request $request, Course $course, CourseContent $content): CourseContentResource
     {
         if (! $course->is_published || $content->course_id !== $course->id) {
             throw new NotFoundHttpException;
         }
 
+        abort_unless($course->isAccessibleBy($this->currentUser($request)), 403, 'Enroll in this course to access its lessons.');
+
+        $request->attributes->set('course_unlocked', true);
+
         return new CourseContentResource($content);
+    }
+
+    /**
+     * Resolve the user from the bearer token even on these public routes
+     * (they carry no auth middleware, so we authenticate manually).
+     */
+    private function currentUser(Request $request): ?User
+    {
+        return $request->user() ?? auth('sanctum')->user();
     }
 }
