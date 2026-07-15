@@ -19,6 +19,9 @@ class CourseController extends Controller
     {
         $courses = Course::query()
             ->withCount('contents')
+            ->withCount(['enrollments as students_count' => fn ($query) => $query->approved()])
+            ->withCount('enrollments as enrollments_count')
+            ->with('instructors')
             ->latest()
             ->get();
 
@@ -30,17 +33,25 @@ class CourseController extends Controller
      */
     public function store(StoreCourseRequest $request): JsonResponse
     {
-        $course = Course::create($request->validated());
+        $data = $request->validated();
+        $instructorIds = $data['instructor_ids'] ?? null;
+        unset($data['instructor_ids']);
 
-        return (new CourseResource($course))->response()->setStatusCode(201);
+        $course = Course::create($data);
+
+        if ($instructorIds !== null) {
+            $this->syncInstructors($course, $instructorIds);
+        }
+
+        return (new CourseResource($course->load('instructors')))->response()->setStatusCode(201);
     }
 
     /**
-     * Show a single course with its content items.
+     * Show a single course with its content items and instructors.
      */
     public function show(Course $course): CourseResource
     {
-        $course->load('contents');
+        $course->load(['contents', 'rootSections.contents', 'rootSections.children.contents', 'instructors']);
 
         return new CourseResource($course);
     }
@@ -50,9 +61,18 @@ class CourseController extends Controller
      */
     public function update(UpdateCourseRequest $request, Course $course): CourseResource
     {
-        $course->update($request->validated());
+        $data = $request->validated();
+        $hasInstructors = array_key_exists('instructor_ids', $data);
+        $instructorIds = $data['instructor_ids'] ?? [];
+        unset($data['instructor_ids']);
 
-        return new CourseResource($course->load('contents'));
+        $course->update($data);
+
+        if ($hasInstructors) {
+            $this->syncInstructors($course, $instructorIds);
+        }
+
+        return new CourseResource($course->load(['contents', 'instructors']));
     }
 
     /**
@@ -63,5 +83,20 @@ class CourseController extends Controller
         $course->delete();
 
         return response()->json(['message' => 'Course deleted.']);
+    }
+
+    /**
+     * Sync the course's instructors, preserving the given order as pivot position.
+     *
+     * @param  array<int, int>  $instructorIds
+     */
+    private function syncInstructors(Course $course, array $instructorIds): void
+    {
+        $pivot = [];
+        foreach (array_values($instructorIds) as $position => $id) {
+            $pivot[$id] = ['position' => $position];
+        }
+
+        $course->instructors()->sync($pivot);
     }
 }

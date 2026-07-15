@@ -28,7 +28,11 @@ class CourseContentController extends Controller
     public function store(StoreCourseContentRequest $request, Course $course): JsonResponse
     {
         $validated = $request->validated();
-        $validated['position'] ??= (int) $course->contents()->max('position') + 1;
+
+        // Position defaults to the end of its section (or the ungrouped list).
+        $validated['position'] ??= (int) $course->contents()
+            ->where('course_section_id', $validated['course_section_id'] ?? null)
+            ->max('position') + 1;
 
         $content = $course->contents()->create($validated);
 

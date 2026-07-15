@@ -6,11 +6,13 @@ use App\Http\Controllers\Api\Admin\AdvertisementController as AdminAdvertisement
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Admin\CourseContentController;
 use App\Http\Controllers\Api\Admin\CourseController as AdminCourseController;
+use App\Http\Controllers\Api\Admin\CourseSectionController;
 use App\Http\Controllers\Api\Admin\EnrollmentController as AdminEnrollmentController;
 use App\Http\Controllers\Api\Admin\ExamAnalyticsController;
 use App\Http\Controllers\Api\Admin\ExamQuestionController;
 use App\Http\Controllers\Api\Admin\FreeResourceController as AdminFreeResourceController;
 use App\Http\Controllers\Api\Admin\HomeSettingController as AdminHomeSettingController;
+use App\Http\Controllers\Api\Admin\InstructorController;
 use App\Http\Controllers\Api\Admin\NoticeController as AdminNoticeController;
 use App\Http\Controllers\Api\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Api\Admin\ProgramController as AdminProgramController;
@@ -118,8 +120,19 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('enrollments/{enrollment}/approve', [AdminEnrollmentController::class, 'approve']);
     Route::post('enrollments/{enrollment}/reject', [AdminEnrollmentController::class, 'reject']);
 
+    // Instructors: reusable teacher profiles assignable to many courses.
+    Route::apiResource('instructors', InstructorController::class);
+
     // Course management + typed content items.
     Route::apiResource('courses', AdminCourseController::class);
+
+    // Curriculum sections (modules) a course groups its content into.
+    Route::get('courses/{course}/sections', [CourseSectionController::class, 'index']);
+    Route::post('courses/{course}/sections', [CourseSectionController::class, 'store']);
+    Route::put('courses/{course}/sections/{section}', [CourseSectionController::class, 'update']);
+    Route::patch('courses/{course}/sections/{section}', [CourseSectionController::class, 'update']);
+    Route::delete('courses/{course}/sections/{section}', [CourseSectionController::class, 'destroy']);
+
     Route::get('courses/{course}/contents/{content}', [CourseContentController::class, 'show']);
     Route::post('courses/{course}/contents', [CourseContentController::class, 'store']);
     Route::put('courses/{course}/contents/{content}', [CourseContentController::class, 'update']);

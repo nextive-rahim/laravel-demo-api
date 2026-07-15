@@ -35,6 +35,9 @@ class UpdateCourseRequest extends FormRequest
             'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
             'rating_count' => ['nullable', 'integer', 'min:0'],
             'is_published' => ['boolean'],
+            'is_featured' => ['boolean'],
+            'instructor_ids' => ['sometimes', 'array'],
+            'instructor_ids.*' => ['integer', 'exists:instructors,id'],
         ];
     }
 }

@@ -25,8 +25,12 @@ class CourseContentResource extends JsonResource
         return [
             'id' => $this->id,
             'course_id' => $this->course_id,
+            'course_section_id' => $this->course_section_id,
             'type' => $this->type->value,
             'title' => $this->title,
+            'is_active' => $this->is_active,
+            'is_paid' => $this->is_paid,
+            'available_from' => $this->available_from,
             'position' => $this->position,
             'locked' => $locked,
             'payload' => $locked ? [] : ($this->payload ?? []),

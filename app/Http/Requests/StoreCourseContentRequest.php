@@ -27,8 +27,15 @@ class StoreCourseContentRequest extends FormRequest
         $rules = [
             'type' => ['required', Rule::enum(CourseContentType::class)],
             'title' => ['required', 'string', 'max:255'],
+            'is_active' => ['boolean'],
+            'is_paid' => ['boolean'],
+            'available_from' => ['nullable', 'date'],
             'position' => ['nullable', 'integer', 'min:0'],
             'payload' => ['nullable', 'array'],
+            'course_section_id' => [
+                'nullable', 'integer',
+                Rule::exists('course_sections', 'id')->where('course_id', $this->route('course')?->id),
+            ],
         ];
 
         $type = CourseContentType::tryFrom((string) $this->input('type'));

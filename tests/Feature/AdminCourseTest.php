@@ -3,6 +3,7 @@
 use App\Enums\CourseContentType;
 use App\Models\Course;
 use App\Models\CourseContent;
+use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -196,4 +197,29 @@ test('a content item cannot be edited through the wrong course', function () {
     $content = CourseContent::factory()->for($courseA)->ofType(CourseContentType::Link)->create();
 
     $this->deleteJson("/api/admin/courses/{$courseB->id}/contents/{$content->id}")->assertNotFound();
+});
+
+test('an admin can toggle a course featured flag', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create(['is_featured' => false]);
+
+    $this->putJson("/api/admin/courses/{$course->id}", ['is_featured' => true])
+        ->assertOk()
+        ->assertJsonPath('data.is_featured', true);
+
+    $this->assertDatabaseHas('courses', ['id' => $course->id, 'is_featured' => true]);
+});
+
+test('the admin course list reports approved student and total enrollment counts', function () {
+    actingAsAdmin();
+    $course = Course::factory()->create();
+
+    Enrollment::factory()->for($course)->approved()->count(3)->create();
+    Enrollment::factory()->for($course)->count(2)->create();      // pending
+    Enrollment::factory()->for($course)->rejected()->create();    // rejected
+
+    $this->getJson('/api/admin/courses')
+        ->assertOk()
+        ->assertJsonPath('data.0.students_count', 3)
+        ->assertJsonPath('data.0.enrollments_count', 6);
 });

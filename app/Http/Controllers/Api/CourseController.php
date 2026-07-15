@@ -15,13 +15,19 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class CourseController extends Controller
 {
     /**
-     * List published courses for the public website.
+     * List published courses for the public website. The signed-in student's own
+     * enrollments are eager-loaded so each card can show its access state.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
+        $user = $this->currentUser($request);
+
         $courses = Course::query()
             ->where('is_published', true)
             ->withCount('contents')
+            ->when($user !== null, fn ($query) => $query->with([
+                'enrollments' => fn ($enrollments) => $enrollments->where('user_id', $user->id),
+            ]))
             ->latest()
             ->get();
 

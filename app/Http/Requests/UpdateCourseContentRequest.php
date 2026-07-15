@@ -28,8 +28,15 @@ class UpdateCourseContentRequest extends FormRequest
         $rules = [
             'type' => ['sometimes', 'required', Rule::enum(CourseContentType::class)],
             'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'is_active' => ['boolean'],
+            'is_paid' => ['boolean'],
+            'available_from' => ['nullable', 'date'],
             'position' => ['nullable', 'integer', 'min:0'],
             'payload' => ['nullable', 'array'],
+            'course_section_id' => [
+                'sometimes', 'nullable', 'integer',
+                Rule::exists('course_sections', 'id')->where('course_id', $this->route('course')?->id),
+            ],
         ];
 
         // Validate the `data` payload against the effective type: the new one if it

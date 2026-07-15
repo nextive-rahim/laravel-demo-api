@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'title', 'description', 'overview', 'thumbnail_path', 'instructor_name', 'instructor_title',
     'instructor_image_path', 'price', 'discount_price', 'rating', 'rating_count', 'is_published',
+    'is_featured',
 ])]
 class Course extends Model
 {
@@ -30,6 +32,26 @@ class Course extends Model
     }
 
     /**
+     * All curriculum sections of the course (top-level and sub-sections), ordered.
+     *
+     * @return HasMany<CourseSection, $this>
+     */
+    public function sections(): HasMany
+    {
+        return $this->hasMany(CourseSection::class)->orderBy('position');
+    }
+
+    /**
+     * Only the top-level sections (those without a parent), ordered for display.
+     *
+     * @return HasMany<CourseSection, $this>
+     */
+    public function rootSections(): HasMany
+    {
+        return $this->hasMany(CourseSection::class)->whereNull('parent_id')->orderBy('position');
+    }
+
+    /**
      * The enrollments (paid access requests) made against this course.
      *
      * @return HasMany<Enrollment, $this>
@@ -37,6 +59,19 @@ class Course extends Model
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    /**
+     * The instructors assigned to teach this course, ordered for display.
+     *
+     * @return BelongsToMany<Instructor, $this>
+     */
+    public function instructors(): BelongsToMany
+    {
+        return $this->belongsToMany(Instructor::class)
+            ->orderByPivot('position')
+            ->withPivot('position')
+            ->withTimestamps();
     }
 
     /**
@@ -110,6 +145,7 @@ class Course extends Model
     {
         return [
             'is_published' => 'boolean',
+            'is_featured' => 'boolean',
             'price' => 'integer',
             'discount_price' => 'integer',
             'rating' => 'float',

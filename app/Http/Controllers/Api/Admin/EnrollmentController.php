@@ -19,11 +19,13 @@ class EnrollmentController extends Controller
     {
         $validated = $request->validate([
             'status' => ['nullable', new Enum(EnrollmentStatus::class)],
+            'course_id' => ['nullable', 'integer', 'exists:courses,id'],
         ]);
 
         $enrollments = Enrollment::query()
             ->with(['user', 'course'])
             ->when($validated['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($validated['course_id'] ?? null, fn ($query, $courseId) => $query->where('course_id', $courseId))
             ->latest()
             ->get();
 

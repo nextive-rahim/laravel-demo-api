@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['course_id', 'type', 'title', 'position', 'payload'])]
+#[Fillable(['course_id', 'course_section_id', 'type', 'title', 'is_active', 'is_paid', 'available_from', 'position', 'payload'])]
 class CourseContent extends Model
 {
     /** @use HasFactory<CourseContentFactory> */
@@ -25,6 +25,16 @@ class CourseContent extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
+    }
+
+    /**
+     * The section this content item belongs to (null for ungrouped content).
+     *
+     * @return BelongsTo<CourseSection, $this>
+     */
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(CourseSection::class, 'course_section_id');
     }
 
     /**
@@ -68,6 +78,9 @@ class CourseContent extends Model
         return [
             'type' => CourseContentType::class,
             'payload' => 'array',
+            'is_active' => 'boolean',
+            'is_paid' => 'boolean',
+            'available_from' => 'datetime',
         ];
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CourseContentType;
+use App\Enums\EnrollmentStatus;
 use App\Models\Course;
 use App\Models\CourseContent;
 use App\Models\Enrollment;
@@ -121,6 +122,41 @@ test('course show unlocks lesson payloads once approved', function () {
         ->assertJsonPath('data.contents.0.payload.body', 'Secret lesson body');
 });
 
+test('the course list reports the student enrollment state per course', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
+
+    $approved = Course::factory()->create(['title' => 'Approved', 'is_published' => true]);
+    $pending = Course::factory()->create(['title' => 'Pending', 'is_published' => true]);
+    $untouched = Course::factory()->create(['title' => 'Untouched', 'is_published' => true]);
+
+    Enrollment::factory()->for($user)->for($approved)->approved()->create();
+    Enrollment::factory()->for($user)->for($pending)->create(['status' => EnrollmentStatus::Pending]);
+    // Another student's enrollment must not leak into this student's cards.
+    Enrollment::factory()->for(User::factory())->for($untouched)->approved()->create();
+
+    $response = $this->getJson('/api/courses')->assertOk();
+
+    $byTitle = collect($response->json('data'))->keyBy('title');
+
+    expect($byTitle['Approved']['is_enrolled'])->toBeTrue();
+    expect($byTitle['Pending']['is_enrolled'])->toBeFalse();
+    expect($byTitle['Pending']['enrollment']['status'])->toBe('pending');
+    expect($byTitle['Untouched']['is_enrolled'])->toBeFalse();
+    expect($byTitle['Untouched']['enrollment'])->toBeNull();
+});
+
+test('the course list never leaks an enrollment to a guest', function () {
+    $course = Course::factory()->create(['is_published' => true]);
+    Enrollment::factory()->for(User::factory())->for($course)->approved()->create();
+
+    // No user, so the field is simply not exposed — the card falls back to "Enroll".
+    $this->getJson('/api/courses')
+        ->assertOk()
+        ->assertJsonMissingPath('data.0.is_enrolled')
+        ->assertJsonMissingPath('data.0.enrollment');
+});
+
 test('the single content endpoint is blocked without an approved enrollment', function () {
     $user = User::factory()->create();
     Sanctum::actingAs($user);
@@ -173,6 +209,19 @@ test('admin enrollment listing can filter by status', function () {
     actingAsAdmin();
 
     $this->getJson('/api/admin/enrollments?status=pending')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
+test('admin enrollment listing can filter by course', function () {
+    $courseA = Course::factory()->create();
+    $courseB = Course::factory()->create();
+    Enrollment::factory()->for($courseA)->count(2)->create();
+    Enrollment::factory()->for($courseB)->count(3)->create();
+
+    actingAsAdmin();
+
+    $this->getJson("/api/admin/enrollments?course_id={$courseA->id}")
         ->assertOk()
         ->assertJsonCount(2, 'data');
 });
