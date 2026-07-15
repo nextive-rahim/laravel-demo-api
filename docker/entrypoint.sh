@@ -13,4 +13,7 @@ php artisan route:cache
 # Apply database migrations (safe to run on every boot).
 php artisan migrate --force
 
+# Seed demo content the first time only (no-op once courses exist).
+php artisan app:seed-if-empty
+
 exec supervisord -n -c /etc/supervisor/supervisord.conf
