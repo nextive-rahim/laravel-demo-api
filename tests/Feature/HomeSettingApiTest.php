@@ -27,6 +27,22 @@ test('the public endpoint works before any content is set', function () {
     expect(HomeSetting::count())->toBe(1);
 });
 
+test('an admin update busts the cached public home settings', function () {
+    HomeSetting::singleton()->update(['hero_title' => 'Original']);
+    $this->getJson('/api/home-settings')->assertOk()->assertJsonPath('data.hero_title', 'Original');
+
+    actingAsAdmin();
+    $this->putJson('/api/admin/home-settings', [
+        'hero_badge' => 'Badge',
+        'hero_title' => 'Updated',
+        'hero_highlight' => 'Highlight',
+        'hero_subtitle' => 'Sub',
+        'stats' => [['value' => '5k+', 'label' => 'Learners']],
+    ])->assertOk();
+
+    $this->getJson('/api/home-settings')->assertOk()->assertJsonPath('data.hero_title', 'Updated');
+});
+
 test('an admin can update the home settings', function () {
     actingAsAdmin();
 

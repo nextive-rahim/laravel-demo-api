@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
@@ -20,6 +21,24 @@ class Course extends Model
 {
     /** @use HasFactory<CourseFactory> */
     use HasFactory;
+
+    /**
+     * Cache key holding the public (guest) published-course catalog. Busted
+     * whenever a course or its content changes so the website never serves
+     * stale data. See [[PublicContentCache]] behaviour in the controllers.
+     */
+    public const PUBLIC_CACHE_KEY = 'public.courses.guest.v1';
+
+    /**
+     * Flush the cached public catalog whenever a course is written or removed.
+     */
+    protected static function booted(): void
+    {
+        $flush = static fn (): bool => Cache::forget(self::PUBLIC_CACHE_KEY);
+
+        static::saved($flush);
+        static::deleted($flush);
+    }
 
     /**
      * The content items belonging to the course, ordered for display.

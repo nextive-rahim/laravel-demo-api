@@ -10,12 +10,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 
 #[Fillable(['course_id', 'course_section_id', 'type', 'title', 'is_active', 'is_paid', 'available_from', 'position', 'payload'])]
 class CourseContent extends Model
 {
     /** @use HasFactory<CourseContentFactory> */
     use HasFactory;
+
+    /**
+     * Adding or removing content changes each course's `contents_count` on the
+     * public catalog, so flush that cache alongside the course's own events.
+     */
+    protected static function booted(): void
+    {
+        $flush = static fn (): bool => Cache::forget(Course::PUBLIC_CACHE_KEY);
+
+        static::saved($flush);
+        static::deleted($flush);
+    }
 
     /**
      * The course this content item belongs to.

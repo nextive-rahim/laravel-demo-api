@@ -7,9 +7,12 @@ use App\Http\Resources\CourseContentResource;
 use App\Http\Resources\CourseResource;
 use App\Models\Course;
 use App\Models\CourseContent;
+use App\Models\Enrollment;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class CourseController extends Controller
@@ -20,18 +23,61 @@ class CourseController extends Controller
      */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $catalog = $this->publishedCatalog();
         $user = $this->currentUser($request);
 
-        $courses = Course::query()
-            ->where('is_published', true)
-            ->withCount('contents')
-            ->when($user !== null, fn ($query) => $query->with([
-                'enrollments' => fn ($enrollments) => $enrollments->where('user_id', $user->id),
-            ]))
-            ->latest()
-            ->get();
+        // Guests all see the same catalog, so serve it straight from cache.
+        if ($user === null) {
+            return CourseResource::collection($catalog);
+        }
 
-        return CourseResource::collection($courses);
+        // Signed-in students reuse that same cached catalog — the only per-user
+        // work is one indexed lookup of their own enrollments, which we graft
+        // onto clones so the shared cached models are never mutated.
+        return CourseResource::collection($this->withEnrollmentsFor($catalog, $user));
+    }
+
+    /**
+     * The published-course catalog shared by every visitor, cached so guests
+     * (and the shared portion of signed-in requests) never touch the database.
+     * Model events bust the cache on any course or content change.
+     *
+     * @return Collection<int, Course>
+     */
+    private function publishedCatalog(): Collection
+    {
+        return Cache::remember(
+            Course::PUBLIC_CACHE_KEY,
+            now()->addDay(),
+            fn () => Course::query()
+                ->where('is_published', true)
+                ->withCount('contents')
+                ->latest()
+                ->get(),
+        );
+    }
+
+    /**
+     * Return clones of the cached courses with the given user's enrollments
+     * attached, fetched in a single query keyed by course.
+     *
+     * @param  Collection<int, Course>  $catalog
+     * @return Collection<int, Course>
+     */
+    private function withEnrollmentsFor(Collection $catalog, User $user): Collection
+    {
+        $enrollments = Enrollment::query()
+            ->where('user_id', $user->id)
+            ->whereIn('course_id', $catalog->modelKeys())
+            ->get()
+            ->groupBy('course_id');
+
+        return $catalog->map(function (Course $course) use ($enrollments): Course {
+            $clone = clone $course;
+            $clone->setRelation('enrollments', $enrollments->get($course->getKey(), new Collection));
+
+            return $clone;
+        });
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Models\CourseContent;
 use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
@@ -18,6 +19,54 @@ test('the public index lists only published courses', function () {
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.title', 'Published');
+});
+
+test('the guest course list is served from cache without touching the database', function () {
+    Course::factory()->create();
+
+    // First request warms the cache.
+    $this->getJson('/api/courses')->assertOk()->assertJsonCount(1, 'data');
+
+    DB::enableQueryLog();
+    $this->getJson('/api/courses')->assertOk()->assertJsonCount(1, 'data');
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    expect($queries)->toBeEmpty();
+});
+
+test('the signed-in course list reuses the cached catalog and only queries enrollments', function () {
+    $user = User::factory()->create();
+    Course::factory()->create();
+    Sanctum::actingAs($user);
+
+    // Warm the shared catalog cache.
+    $this->getJson('/api/courses')->assertOk()->assertJsonCount(1, 'data');
+
+    DB::enableQueryLog();
+    $this->getJson('/api/courses')->assertOk()->assertJsonCount(1, 'data');
+    $queries = collect(DB::getQueryLog())->pluck('query');
+    DB::disableQueryLog();
+
+    // The catalog comes from cache; the only DB work is the user's enrollments.
+    expect($queries->filter(fn ($q) => str_contains($q, 'from "courses"')))->toBeEmpty();
+    expect($queries->filter(fn ($q) => str_contains($q, 'from "enrollments"')))->not->toBeEmpty();
+});
+
+test('publishing a new course busts the cached public list', function () {
+    Course::factory()->create(['title' => 'First']);
+    $this->getJson('/api/courses')->assertOk()->assertJsonCount(1, 'data');
+
+    Course::factory()->create(['title' => 'Second']);
+    $this->getJson('/api/courses')->assertOk()->assertJsonCount(2, 'data');
+});
+
+test('adding content updates the cached contents_count on the public list', function () {
+    $course = Course::factory()->create();
+    $this->getJson('/api/courses')->assertOk()->assertJsonPath('data.0.contents_count', 0);
+
+    CourseContent::factory()->for($course)->ofType(CourseContentType::Note)->create();
+    $this->getJson('/api/courses')->assertOk()->assertJsonPath('data.0.contents_count', 1);
 });
 
 test('a published course is shown with its typed contents', function () {
